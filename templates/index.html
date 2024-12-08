@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Time Detection – Poka Yoke</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <img src="{{ url_for('static', filename='images/decatur-logo.png') }}" alt="Decatur Logo" class="header-logo">
+            <h1>Real Time Objection Detection – Poka Yoke</h1>
+        </div>
+        <div class="header-controls">
+            <button id="record-button" class="record-button">Record Detection</button>
+            <div class="system-status">
+                <span class="status-indicator" id="camera-status"></span>
+                <span id="system-status-text">System Inactive</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <div class="left-panel">
+            <div class="customer-section">
+                <div class="logo-box">
+                    <img id="customer-logo" src="" alt="Customer Logo">
+                </div>
+                <div class="info-quadrants">
+                    <div class="info-quadrant">
+                        <div class="quadrant-title">CUSTOMER</div>
+                        <div class="quadrant-value" id="customer-name">-</div>
+                    </div>
+                    <div class="info-quadrant">
+                        <div class="quadrant-title">PROGRAM</div>
+                        <div class="quadrant-value" id="program-name">-</div>
+                    </div>
+                    <div class="info-quadrant">
+                        <div class="quadrant-title">PART NUMBER</div>
+                        <div class="quadrant-value" id="part-number">-</div>
+                    </div>
+                    <div class="info-quadrant">
+                        <div class="quadrant-title">DESCRIPTION</div>
+                        <div class="quadrant-value" id="part-description">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detection-panels">
+                <div class="latest-detections">
+                    <h3>Latest Detections</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>PN</th>
+                                <th>Time</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1000000</td>
+                                <td>P2R-E21400</td>
+                                <td>12:21</td>
+                                <td>OK</td>
+                            </tr>
+                            {% for i in range(9, 0, -1) %}
+                            <tr>
+                                <td>{{ 130 - i + 1 }}</td>
+                                <td>P2R-E21400</td>
+                                <td>12:{{ 21 - i + 1 }}</td>
+                                <td>{{ "NOK" if i == 9 else "OK" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div class="stats-tables">
+                        <h4>Total Parts Inspected</h4>
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Week</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>130</td>
+                                    <td>12:21</td>
+                                    <td>OK</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="detection-status" id="detection-status">
+                    <div id="part-detection-status" class="status-box status-nok">
+                        <div>PART DETECTION</div>
+                        <div>NOK</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="webcam-feed">
+                <h3>Live Camera Feed</h3>
+                <img src="{{ url_for('video_feed') }}" alt="Webcam feed" onload="updateCameraStatus(true)" onerror="updateCameraStatus(false)">
+            </div>
+            <div class="picture-box">
+                <h3>CAD Picture</h3>
+                <div class="picture-box-content">
+                    <img id="cad-picture" src="" alt="CAD Picture">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateCameraStatus(connected) {
+            const statusIndicator = document.getElementById('camera-status');
+            const statusText = document.getElementById('system-status-text');
+            if (connected) {
+                statusIndicator.classList.add('connected');
+                statusText.textContent = 'System Active';
+            } else {
+                statusIndicator.classList.remove('connected');
+                statusText.textContent = 'System Inactive';
+            }
+        }
+
+        function createClipDetectionBoxes(numClips, clipDetections) {
+            const detectionStatus = document.getElementById('detection-status');
+            const existingBoxes = detectionStatus.querySelectorAll('.status-box:not(#part-detection-status)');
+            
+            // Remove existing clip detection boxes
+            existingBoxes.forEach(box => box.remove());
+            
+            // Calculate the total flex space available
+            const totalFlex = numClips + 1; // +1 for part detection box
+            
+            // Update part detection box flex
+            const partDetectionBox = document.getElementById('part-detection-status');
+            partDetectionBox.style.flex = `1 1 ${100/totalFlex}%`;
+            
+            // Create clip detection boxes
+            if (numClips > 0) {
+                const clipBox = document.createElement('div');
+                clipBox.className = `status-box ${clipDetections[0] ? 'status-ok' : 'status-nok'}`;
+                clipBox.style.flex = `1 1 ${100/totalFlex}%`;
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.textContent = numClips === 1 ? 'CLIP DETECTION' : `CLIP #1 DETECTION`;
+                
+                const statusDiv = document.createElement('div');
+                statusDiv.textContent = clipDetections[0] ? 'OK' : 'NOK';
+                
+                clipBox.appendChild(titleDiv);
+                clipBox.appendChild(statusDiv);
+                detectionStatus.appendChild(clipBox);
+
+                // Add additional clip boxes if more than one clip
+                for (let i = 1; i < numClips; i++) {
+                    const additionalClipBox = document.createElement('div');
+                    additionalClipBox.className = `status-box ${clipDetections[i] ? 'status-ok' : 'status-nok'}`;
+                    additionalClipBox.style.flex = `1 1 ${100/totalFlex}%`;
+                    
+                    const additionalTitleDiv = document.createElement('div');
+                    additionalTitleDiv.textContent = `CLIP #${i + 1} DETECTION`;
+                    
+                    const additionalStatusDiv = document.createElement('div');
+                    additionalStatusDiv.textContent = clipDetections[i] ? 'OK' : 'NOK';
+                    
+                    additionalClipBox.appendChild(additionalTitleDiv);
+                    additionalClipBox.appendChild(additionalStatusDiv);
+                    detectionStatus.appendChild(additionalClipBox);
+                }
+            }
+        }
+
+        function updatePartInfo() {
+            fetch('/part_info')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('customer-name').textContent = data.customer;
+                    document.getElementById('program-name').textContent = data.program;
+                    document.getElementById('part-number').textContent = data.part_number;
+                    document.getElementById('part-description').textContent = data.description;
+                    
+                    // Update customer logo
+                    if (data.customer !== 'Unknown') {
+                        const logoPath = `/static/images/${data.customer.toLowerCase()}-logo.png`;
+                        document.getElementById('customer-logo').src = logoPath;
+                    }
+
+                    // Update CAD picture
+                    const cadPicture = document.getElementById('cad-picture');
+                    if (data.part_number !== 'Unknown') {
+                        cadPicture.src = `/static/images/${data.part_number}.png`;
+                    } else {
+                        cadPicture.src = '';
+                    }
+
+                    // Update part detection status
+                    const partDetectionStatus = document.getElementById('part-detection-status');
+                    if (data.bom_part_detected) {
+                        partDetectionStatus.classList.remove('status-nok');
+                        partDetectionStatus.classList.add('status-ok');
+                        partDetectionStatus.querySelector('div:last-child').textContent = 'OK';
+                    } else {
+                        partDetectionStatus.classList.remove('status-ok');
+                        partDetectionStatus.classList.add('status-nok');
+                        partDetectionStatus.querySelector('div:last-child').textContent = 'NOK';
+                    }
+
+                    // Update clip detection boxes
+                    createClipDetectionBoxes(data.num_clips, data.clip_detections);
+                })
+                .catch(error => console.error('Error fetching part info:', error));
+        }
+
+        // Record button click handler
+        document.getElementById('record-button').addEventListener('click', function() {
+            fetch('/record_detection')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        console.log('Detection recorded successfully');
+                    }
+                })
+                .catch(error => console.error('Error recording detection:', error));
+        });
+
+        // Update part info every second
+        setInterval(updatePartInfo, 1000);
+    </script>
+</body>
+</html>
